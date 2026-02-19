@@ -9,15 +9,38 @@ from nltk.stem import PorterStemmer
 class InvertedIndex:
     def __init__(self):
         self.index = defaultdict(dict)       
-        self.doc_lengths = defaultdict(float)
         self.urls = {}                       
         self.doc_count = 0
+        self.doc_lengths = defaultdict(float)
 
-        self.stemmer = PorterStemmer()
+        self.stemmer = PorterStemmer() #for stemming
 
         # if there are duplicates 
         self.exact_hashes = set()
         self.simhashes = []
+
+    def compute_simhash(self, tokens):
+        vector = [0] * 64
+
+        for token in tokens:
+            h = int(hashlib.md5(token.encode()).hexdigest(), 16)
+
+            for i in range(64):
+                bitmask = 1 << i
+                if h & bitmask:
+                    vector[i] += 1
+                else:
+                    vector[i] -= 1
+
+        fingerprint = 0
+        for i in range(64):
+            if vector[i] > 0:
+                fingerprint |= 1 << i
+
+        return fingerprint
+
+    def hamming_distance(self, h1, h2):
+        return bin(h1 ^ h2).count("1")
 
     def process_file(self, filepath):
         try:
@@ -39,7 +62,7 @@ class InvertedIndex:
         if text_hash in self.exact_hashes:
             return
         self.exact_hashes.add(text_hash)
-        
+
 #making tokens
         tokens = []
         term_freq = defaultdict(float)
