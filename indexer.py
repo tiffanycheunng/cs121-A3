@@ -76,4 +76,48 @@ class InvertedIndex:
                 tokens.append(stemmed)
                 term_freq[stemmed] += 1.0
 
+        important_tags = soup.find_all(["title", "h1", "h2", "h3", "strong", "b"])
 
+        for tag in important_tags:
+            words = tag.get_text(" ").split()
+            for word in words:
+                token = ''.join(c.lower() for c in word if c.isalnum())
+                if token:
+                    stemmed = self.stemmer.stem(token)
+                    term_freq[stemmed] += 2.0  # boost weight
+
+        simhash_value = self.compute_simhash(tokens)
+
+        for existing_hash in self.simhashes:
+            if self.hamming_distance(simhash_value, existing_hash) <= 3:
+                return
+
+        self.simhashes.append(simhash_value)
+
+        doc_id = self.doc_count
+        self.urls[doc_id] = url
+        self.doc_count += 1
+
+        for term, tf in term_freq.items():
+            self.index[term][doc_id] = tf
+
+        self.doc_lengths[doc_id] = sum(term_freq.values())
+
+    # index entire folder
+    def index_directory(self, root_path):
+        for root, _, files in os.walk(root_path):
+            for file in files:
+                if file.endswith(".json"):
+                    self.process_file(os.path.join(root, file))
+
+    # save index to file
+    def save(self, filepath):
+        data = {
+            "index": dict(self.index),
+            "doc_lengths": dict(self.doc_lengths),
+            "urls": self.urls,
+            "doc_count": self.doc_count
+        }
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f)
