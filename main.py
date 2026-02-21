@@ -7,6 +7,8 @@ def build_index():
     index.index_directory("analyst")   
     index.save("index.json")
 
+    print(dict(index.stats))
+    print("doc_count:", index.doc_count)
     print("Index built successfully!")
     print("Indexed documents:", index.doc_count)
     print("Unique tokens:", len(index.index))

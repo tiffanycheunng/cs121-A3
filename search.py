@@ -2,7 +2,6 @@ import json
 import math
 from nltk.stem import PorterStemmer
 
-
 class SearchEngine:
     def __init__(self, index_file):
         with open(index_file, "r", encoding="utf-8") as f:

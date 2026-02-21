@@ -43,20 +43,22 @@ class InvertedIndex:
         return bin(h1 ^ h2).count("1")
 
     def process_file(self, filepath):
+
         try:
             with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
                 data = json.load(f)
-        except Exception:
-            return  
+        except Exception as e:
+            return e
 
         url = data.get("url", "")
         html_content = data.get("content", "")
-
         if not html_content:
             return
 
         soup = BeautifulSoup(html_content, "html.parser")
-        text = soup.get_text(" ")
+        for tag in soup(["script", "style", "noscript"]):
+            tag.decompose()
+        text = soup.get_text(" ", strip=True)
 
         text_hash = hashlib.sha256(text.encode()).hexdigest()
         if text_hash in self.exact_hashes:
@@ -67,9 +69,7 @@ class InvertedIndex:
         tokens = []
         term_freq = defaultdict(float)
 
-        words = text.split()
-
-        for word in words:
+        for word in text.split():
             token = ''.join(c.lower() for c in word if c.isalnum())
             if token:
                 stemmed = self.stemmer.stem(token)
@@ -89,7 +89,7 @@ class InvertedIndex:
         simhash_value = self.compute_simhash(tokens)
 
         for existing_hash in self.simhashes:
-            if self.hamming_distance(simhash_value, existing_hash) <= 3:
+            if self.hamming_distance(simhash_value, existing_hash) <= 2:
                 return
 
         self.simhashes.append(simhash_value)
