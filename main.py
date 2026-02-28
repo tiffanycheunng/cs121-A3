@@ -4,7 +4,7 @@ from search import SearchEngine
 
 def build_index():
     index = InvertedIndex()
-    index.index_directory("analyst")   
+    index.index_directory("ANALYST")   
     index.save("index.json")
 
     print("doc_count:", index.doc_count)
@@ -12,6 +12,23 @@ def build_index():
     print("Indexed documents:", index.doc_count)
     print("Unique tokens:", len(index.index))
     print("Index size (KB):", round(os.path.getsize("index.json") / 1024, 2))
+    
+def test_required_queries():
+    engine = SearchEngine("index.json")
+
+    queries = [
+        "cristina lopes",
+        "machine learning",
+        "ACM",
+        "master of software engineering"
+    ]
+
+    for q in queries:
+        print("\nQuery:", q)
+        results = engine.search(q)
+
+        for url, score in results:
+            print(url, "| score:", score)
 
 def run_search():
     engine = SearchEngine("index.json")
@@ -30,4 +47,5 @@ def run_search():
 
 if __name__ == "__main__":
     build_index()
+    test_required_queries()
     run_search()

@@ -7,31 +7,39 @@ class SearchEngine:
         with open(index_file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        self.index = data["index"]
-        self.doc_lengths = data["doc_lengths"]
-        self.urls = data["urls"]
+        # Convert keys back to int (JSON stores them as strings)
+        self.index = {
+            term: {int(doc_id): tf for doc_id, tf in postings.items()}
+            for term, postings in data["index"].items()
+        }
+
+        self.doc_lengths = {int(k): v for k, v in data["doc_lengths"].items()}
+        self.urls = {int(k): v for k, v in data["urls"].items()}
         self.N = data["doc_count"]
 
         self.stemmer = PorterStemmer()
 
-    def search(self, query):
-        scores = {}
-
-        og_terms = query.split()
+    def process_query(self, query):
         terms = []
 
-        for t in og_terms:
-            if t.upper() == "AND":
+        for word in query.split():
+            if word.upper() == "AND":
                 continue
-            token = ''.join(c.lower() for c in t if c.isalnum())
-            if not token:
-                continue
-            stemmed = self.stemmer.stem(token)
-            terms.append(stemmed)
+
+            token = ''.join(c.lower() for c in word if c.isalnum())
+            if token:
+                stemmed = self.stemmer.stem(token)
+                terms.append(stemmed)
+
+        return terms
+
+    def search(self, query):
+        terms = self.process_query(query)
 
         if not terms:
-            return[]
+            return []
 
+        # Boolean AND: find common documents
         doc_sets = []
         for term in terms:
             if term not in self.index:
@@ -39,20 +47,21 @@ class SearchEngine:
             doc_sets.append(set(self.index[term].keys()))
 
         candidates = set.intersection(*doc_sets)
+        scores = {}
 
         for term in terms:
             postings = self.index[term]
             df = len(postings)
             idf = math.log((self.N + 1) / (df + 1))
-            for doc_id, tf in postings.items():
-                if doc_id in candidates:
-                    tfidf = tf * idf
-                    scores[doc_id] = scores.get(doc_id, 0) + tfidf
+
+            for doc_id in candidates:
+                tf = postings[doc_id]
+                normalized_score = (tf * idf) / self.doc_lengths[doc_id]
+                scores[doc_id] = scores.get(doc_id, 0) + normalized_score
 
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
         results = []
         for doc_id, score in ranked[:5]:
-            results.append((self.urls[str(doc_id)], round(score, 4)))
-
+            results.append((self.urls[doc_id], round(score, 6)))
         return results

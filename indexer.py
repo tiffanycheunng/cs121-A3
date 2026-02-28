@@ -74,8 +74,7 @@ class InvertedIndex:
             if token:
                 stemmed = self.stemmer.stem(token)
                 tokens.append(stemmed)
-                term_freq[stemmed] += 1.0
-
+                term_freq[stemmed] += 1.0   
         important_tags = soup.find_all(["title", "h1", "h2", "h3", "strong", "b"])
 
         for tag in important_tags:
@@ -85,7 +84,6 @@ class InvertedIndex:
                 if token:
                     stemmed = self.stemmer.stem(token)
                     term_freq[stemmed] += 2.0  # boost weight
-
         simhash_value = self.compute_simhash(tokens)
 
         for existing_hash in self.simhashes:
