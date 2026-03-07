@@ -59,9 +59,10 @@ class SearchEngine:
             idf = math.log((self.N + 1) / (df + 1))
 
             for doc_id in candidates:
-                tf = postings[doc_id]
-                normalized_score = (tf * idf) / self.doc_lengths[doc_id]
-                scores[doc_id] = scores.get(doc_id, 0) + normalized_score
+                if doc_id in postings:
+                    tf = postings[doc_id]
+                    normalized_score = (tf * idf) / self.doc_lengths[doc_id]
+                    scores[doc_id] = scores.get(doc_id, 0) + normalized_score
 
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
