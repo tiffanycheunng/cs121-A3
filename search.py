@@ -27,8 +27,10 @@ class SearchEngine:
                 continue
 
             token = ''.join(c.lower() for c in word if c.isalnum())
-            if token:
-                stemmed = self.stemmer.stem(token)
+            if not token:
+                continue
+            stemmed = self.stemmer.stem(token)
+            if stemmed in self.index:
                 terms.append(stemmed)
 
         return terms
@@ -42,11 +44,13 @@ class SearchEngine:
         # Boolean AND: find common documents
         doc_sets = []
         for term in terms:
-            if term not in self.index:
-                return []
             doc_sets.append(set(self.index[term].keys()))
 
         candidates = set.intersection(*doc_sets)
+
+        if not candidates:
+            candidates = set.union(*doc_sets)
+
         scores = {}
 
         for term in terms:
