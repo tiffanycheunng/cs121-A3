@@ -83,7 +83,7 @@ class InvertedIndex:
                 token = ''.join(c.lower() for c in word if c.isalnum())
                 if token:
                     stemmed = self.stemmer.stem(token)
-                    term_freq[stemmed] += 2.0  # boost weight
+                    term_freq[stemmed] += 4.0  # boost weight
         simhash_value = self.compute_simhash(tokens)
 
         for existing_hash in self.simhashes:
