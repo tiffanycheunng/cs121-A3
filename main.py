@@ -13,11 +13,11 @@ def build_index():
     print("Unique tokens:", len(index.index))
     print("Index size (KB):", round(os.path.getsize("index.json") / 1024, 2))
 
-
 def run_search():
     engine = SearchEngine("index.json")
     while True:
         query = input("\nEnter query (or type exit_out): ")
+
         if query.lower() == "exit_out":
             break
         results = engine.search(query)

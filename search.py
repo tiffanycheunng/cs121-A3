@@ -32,7 +32,6 @@ class SearchEngine:
             if not token:
                 continue
             stemmed = self.stemmer.stem(token)
-            # Teammate's change: only keep terms that exist in the index
             if stemmed in self.index:
                 terms.append(stemmed)
         return terms
@@ -42,9 +41,13 @@ class SearchEngine:
         if not terms:
             return []
 
-        # Teammate's change: strict Boolean AND with union fallback
-        doc_sets = [set(self.index[term].keys()) for term in terms]
+        # Boolean AND: find common documents
+        doc_sets = []
+        for term in terms:
+            doc_sets.append(set(self.index[term].keys()))
+
         candidates = set.intersection(*doc_sets)
+
         if not candidates:
             candidates = set.union(*doc_sets)
 
@@ -54,12 +57,10 @@ class SearchEngine:
             df = len(postings)
             idf = math.log((self.N + 1) / (df + 1))
             for doc_id in candidates:
-                # Guard: doc may not have this term if we fell back to union
-                if doc_id not in postings:
-                    continue
-                tf = postings[doc_id]
-                normalized_score = (tf * idf) / self.doc_lengths[doc_id]
-                scores[doc_id] = scores.get(doc_id, 0) + normalized_score
+                if doc_id in postings:
+                    tf = postings[doc_id]
+                    normalized_score = (tf * idf) / self.doc_lengths[doc_id]
+                    scores[doc_id] = scores.get(doc_id, 0) + normalized_score
 
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
