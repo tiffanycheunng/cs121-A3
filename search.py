@@ -45,9 +45,7 @@ class SearchEngine:
         doc_sets = []
         for term in terms:
             doc_sets.append(set(self.index[term].keys()))
-
         candidates = set.intersection(*doc_sets)
-
         if not candidates:
             candidates = set.union(*doc_sets)
 
@@ -64,7 +62,6 @@ class SearchEngine:
 
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
-        # Keep original junk URL filter, return top 5 per teammate's version
         results = []
         for doc_id, score in ranked:
             url = self.urls[doc_id]
