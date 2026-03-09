@@ -21,9 +21,12 @@ def run_search():
         if query.lower() == "exit_out":
             break
         results = engine.search(query)
-        print("\nTop Results:")
-        for url, score in results:
-            print(url, "| score:", score)
+        if not results:
+            print("\nNo relevant results found. The database may not contain pages related to this query.")
+        else:
+            print("\nTop Results:")
+            for url, score in results:
+                print(url, "| score:", score)
 
 
 if __name__ == "__main__":

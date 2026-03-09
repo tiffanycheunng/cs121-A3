@@ -4,7 +4,7 @@ from nltk.stem import PorterStemmer
 
 
 IGNORE_URL_PATTERNS = ["?ical=1", "ical=1", "feed=rss", "feed=atom", ".ics", "calendar/export", "?replytocom="]
-
+STOPWORDS = {"how","to","the","is","a","an","of","in","for","on","what","when","where","why"}
 
 class SearchEngine:
     def __init__(self, index_file):
@@ -26,10 +26,8 @@ class SearchEngine:
     def process_query(self, query):
         terms = []
         for word in query.split():
-            if word.upper() == "AND":
-                continue
             token = ''.join(c.lower() for c in word if c.isalnum())
-            if not token:
+            if not token or token in STOPWORDS:
                 continue
             stemmed = self.stemmer.stem(token)
             if stemmed in self.index:
@@ -57,7 +55,8 @@ class SearchEngine:
             for doc_id in candidates:
                 if doc_id in postings:
                     tf = postings[doc_id]
-                    normalized_score = (tf * idf) / self.doc_lengths[doc_id]
+                    tf_weight = 1 + math.log(tf)
+                    normalized_score = (tf_weight * idf) / self.doc_lengths[doc_id]
                     scores[doc_id] = scores.get(doc_id, 0) + normalized_score
 
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
