@@ -43,9 +43,14 @@ class SearchEngine:
         doc_sets = []
         for term in terms:
             doc_sets.append(set(self.index[term].keys()))
-        candidates = set.intersection(*doc_sets)
-        if not candidates:
+        and_candidates = set.intersection(*doc_sets)
+
+        TOP_K = 5
+        if len(and_candidates) < TOP_K:
             candidates = set.union(*doc_sets)
+        else:
+            candidates = and_candidates
+
 
         scores = {}
         for term in terms:
@@ -58,6 +63,11 @@ class SearchEngine:
                     tf_weight = 1 + math.log(tf)
                     normalized_score = (tf_weight * idf) / self.doc_lengths[doc_id]
                     scores[doc_id] = scores.get(doc_id, 0) + normalized_score
+        num_terms = len(terms)
+        for doc_id in scores:
+            terms_matched = sum(1 for term in terms if doc_id in self.index[term])
+            coverage = terms_matched / num_terms
+            scores[doc_id] *= coverage
 
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
 
