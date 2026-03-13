@@ -3,8 +3,10 @@ import os
 import json
 import hashlib
 from collections import defaultdict
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
+import warnings
 from nltk.stem import PorterStemmer
+from math import sqrt, log
 
 class InvertedIndex:
     def __init__(self):
@@ -18,6 +20,8 @@ class InvertedIndex:
         # if there are duplicates 
         self.exact_hashes = set()
         self.simhashes = []
+
+        self.doc_norms = {}
 
     def compute_simhash(self, tokens):
         vector = [0] * 64
@@ -54,6 +58,8 @@ class InvertedIndex:
         html_content = data.get("content", "")
         if not html_content:
             return
+
+        warnings.filterwarnings("ignore", category = XMLParsedAsHTMLWarning)
 
         soup = BeautifulSoup(html_content, "html.parser")
         for tag in soup(["script", "style", "noscript"]):
@@ -119,3 +125,36 @@ class InvertedIndex:
 
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(data, f)
+
+    def save(self, filepath):
+        data = {
+            "index": dict(self.index),
+            "doc_lengths": dict(self.doc_lengths),
+            "urls": self.urls,
+            "doc_count": self.doc_count
+        }
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+
+    def compute_doc_lnc(self):
+        doc_norms = defaultdict(float)
+
+        for term, postings in self.index.items():
+            for doc_id, tf in postings.items():
+                d_wtf = 1 + log(tf, 10) if tf > 0 else 0
+                self.index[term][doc_id] = d_wtf
+                doc_norms[doc_id] += d_wtf ** 2
+
+        for doc_id in doc_norms:
+            doc_norms[doc_id] = sqrt(doc_norms[doc_id])
+
+        for term, postings in self.index.items():
+            for doc_id, w_td in postings.items():
+                norm = doc_norms[doc_id]
+                if norm > 0:
+                    self.index[term][doc_id] = w_td / norm
+                else:
+                    self.index[term][doc_id] = 0.0
+
+        self.doc_norms = dict(doc_norms)

@@ -6,6 +6,7 @@ from search import SearchEngine
 def build_index():
     index = InvertedIndex()
     index.index_directory("ANALYST")
+    index.compute_doc_lnc()
     index.save("index.json")
     print("doc_count:", index.doc_count)
     print("Index built successfully!")

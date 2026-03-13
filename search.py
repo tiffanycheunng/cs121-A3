@@ -1,6 +1,7 @@
 import json
 import math
 from nltk.stem import PorterStemmer
+from collections import defaultdict
 
 
 IGNORE_URL_PATTERNS = ["?ical=1", "ical=1", "feed=rss", "feed=atom", ".ics", "calendar/export", "?replytocom="]
@@ -36,47 +37,61 @@ class SearchEngine:
 
     def search(self, query):
         terms = self.process_query(query)
+
         if not terms:
             return []
 
+        query_tf = defaultdict(float)
+        for term in terms:
+            query_tf[term] += 1.0
+
+        unique_terms = list(query_tf.keys())
+
         # Boolean AND: find common documents
         doc_sets = []
-        for term in terms:
+        for term in unique_terms:
             doc_sets.append(set(self.index[term].keys()))
-        and_candidates = set.intersection(*doc_sets)
 
-        TOP_K = 5
-        if len(and_candidates) < TOP_K:
+        candidates = set.intersection(*doc_sets)
+
+        if not candidates:
             candidates = set.union(*doc_sets)
-        else:
-            candidates = and_candidates
 
+        ### lnc.ltc implementation for cosine similarity scores
+        scores = defaultdict(float)
+        query_weights = {}
+        query_norm_sq = 0.0
 
-        scores = {}
-        for term in terms:
+        for term in unique_terms:
             postings = self.index[term]
+            q_tf = query_tf[term]
+            q_wtf = 1 + math.log(q_tf, 10) if q_tf > 0 else 0
+
             df = len(postings)
             idf = math.log((self.N + 1) / (df + 1))
-            for doc_id in candidates:
-                if doc_id in postings:
-                    tf = postings[doc_id]
-                    tf_weight = 1 + math.log(tf)
-                    normalized_score = (tf_weight * idf) / self.doc_lengths[doc_id]
-                    scores[doc_id] = scores.get(doc_id, 0) + normalized_score
-        num_terms = len(terms)
-        for doc_id in scores:
-            terms_matched = sum(1 for term in terms if doc_id in self.index[term])
-            coverage = terms_matched / num_terms
-            scores[doc_id] *= coverage
 
-        ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+            term_weight_for_query = q_wtf * idf
+            query_weights[term] = term_weight_for_query
+            query_norm_sq += term_weight_for_query ** 2
+
+        query_norm = math.sqrt(query_norm_sq)
+        if query_norm == 0:
+            return []
+
+        for term in query_weights:
+            query_weights[term] /= query_norm
+
+        for term in unique_terms:
+            q_weight = query_weights[term]
+            postings = self.index[term]
+
+            for doc_id, d_weight in postings.items():
+                if doc_id in candidates:
+                    scores[doc_id] += d_weight * q_weight
+
+        ranked = sorted(scores.items(), key = lambda x: x[1], reverse = True)
 
         results = []
-        for doc_id, score in ranked:
-            url = self.urls[doc_id]
-            if not self.is_junk_url(url):
-                results.append((url, round(score, 6)))
-            if len(results) == 5:
-                break
-
+        for doc_id, score in ranked[:5]:
+            results.append((self.urls[doc_id], round(score, 6)))
         return results
