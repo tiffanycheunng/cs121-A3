@@ -33,6 +33,12 @@ class SearchEngine:
             stemmed = self.stemmer.stem(token)
             if stemmed in self.index:
                 terms.append(stemmed)
+
+        for i in range(len(terms) - 1):
+            bigram = terms[i] + " " + terms[i + 1]
+            if bigram in self.index:
+                terms.append(bigram)
+        
         return terms
 
     def search(self, query):
