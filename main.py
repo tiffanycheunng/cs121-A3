@@ -1,4 +1,5 @@
 import os
+import time
 from indexer import InvertedIndex
 from search import SearchEngine
 
@@ -22,7 +23,10 @@ def run_search():
 
         if query.lower() == "exit_out":
             break
+        start_time = time.time()
         results = engine.search(query)
+        end_time = time.time()
+        print("Search time:", round((end_time - start_time) * 1000, 2), "ms")
         if not results:
             print("\nNo relevant results found. The database may not contain pages related to this query.")
         else:
