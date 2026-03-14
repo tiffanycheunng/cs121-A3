@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 import warnings
 from nltk.stem import PorterStemmer
 from math import sqrt, log
+from urllib.parse import urljoin, urldefrag
 
 class InvertedIndex:
     def __init__(self):
@@ -22,6 +23,9 @@ class InvertedIndex:
         self.simhashes = []
 
         self.doc_norms = {}
+
+        self.url_to_doc_id = {}
+        self.raw_anchor_text = defaultdict(list)
 
     def compute_simhash(self, tokens):
         vector = [0] * 64
@@ -59,6 +63,8 @@ class InvertedIndex:
         if not html_content:
             return
 
+        normalized_page_url = url.rstrip("/")
+
         warnings.filterwarnings("ignore", category = XMLParsedAsHTMLWarning)
 
         soup = BeautifulSoup(html_content, "html.parser")
@@ -71,16 +77,27 @@ class InvertedIndex:
             return
         self.exact_hashes.add(text_hash)
 
+        anchor_pairs = []                               ##anchor pairs
+        for a in soup.find_all("a", href = True):
+            href = a["href"].strip()
+            anchor_text = a.get_text(" ", strip = True)
+
+            if not href or not anchor_text:
+                continue
+
+            target_url = self.normalize_url(url, href)
+            if target_url.startswith("http"):
+                anchor_pairs.append((target_url, anchor_text))
+
 #making tokens
         tokens = []
         term_freq = defaultdict(float)
 
         for word in text.split():
-            token = ''.join(c.lower() for c in word if c.isalnum())
-            if token:
-                stemmed = self.stemmer.stem(token)
+            stemmed = ''.join(c.lower() for c in word if c.isalnum())
+            if stemmed is not None:
                 tokens.append(stemmed)
-                term_freq[stemmed] += 1.0   
+                term_freq[stemmed] += 1.0
 
         for i in range(len(tokens) - 1):
             bigram = tokens[i] + " " + tokens[i + 1]
@@ -104,8 +121,11 @@ class InvertedIndex:
         self.simhashes.append(simhash_value)
 
         doc_id = self.doc_count
-        self.urls[doc_id] = url
+        self.urls[doc_id] = normalized_page_url
+        self.url_to_doc_id[normalized_page_url] = doc_id
         self.doc_count += 1
+
+        self.raw_anchor_text[doc_id] = anchor_pairs
 
         for term, tf in term_freq.items():
             self.index[term][doc_id] = tf
@@ -120,17 +140,6 @@ class InvertedIndex:
                     self.process_file(os.path.join(root, file))
 
     # save index to file
-    def save(self, filepath):
-        data = {
-            "index": dict(self.index),
-            "doc_lengths": dict(self.doc_lengths),
-            "urls": self.urls,
-            "doc_count": self.doc_count
-        }
-
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(data, f)
-
     def save(self, filepath):
         data = {
             "index": dict(self.index),
@@ -163,3 +172,30 @@ class InvertedIndex:
                     self.index[term][doc_id] = 0.0
 
         self.doc_norms = dict(doc_norms)
+
+    def normalize_url(self, base_url, href):
+        resolved = urljoin(base_url, href)
+        resolved, _ = urldefrag(resolved)
+        return resolved.rstrip("/")
+
+    def tokenize_anchor_text(self, text):
+        terms = []
+        for word in text.split():
+            stemmed = ''.join(c.lower() for c in word if c.isalnum())
+            if stemmed is not None:
+                terms.append(stemmed)
+        return terms
+
+    def apply_anchor_text(self, boost = 1.0):
+        for source_doc_id, anchor_list in self.raw_anchor_text.items():
+            for target_url, anchor_text in anchor_list:
+                target_doc_id = self.url_to_doc_id.get(target_url)
+
+                if target_doc_id is None:
+                    continue
+
+                terms = self.tokenize_anchor_text(anchor_text)
+
+                for term in terms:
+                    current = self.index[term].get(target_doc_id, 0.0)
+                    self.index[term][target_doc_id] = current + boost
