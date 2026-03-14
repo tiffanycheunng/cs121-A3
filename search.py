@@ -5,7 +5,6 @@ from collections import defaultdict
 
 
 IGNORE_URL_PATTERNS = ["?ical=1", "ical=1", "feed=rss", "feed=atom", ".ics", "calendar/export", "?replytocom="]
-STOPWORDS = {"how","to","the","is","a","an","of","in","for","on","what","when","where","why"}
 
 class SearchEngine:
     def __init__(self, index_file):
@@ -28,7 +27,7 @@ class SearchEngine:
         terms = []
         for word in query.split():
             token = ''.join(c.lower() for c in word if c.isalnum())
-            if not token or token in STOPWORDS:
+            if not token:
                 continue
             stemmed = self.stemmer.stem(token)
             if stemmed in self.index:
