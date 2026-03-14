@@ -81,6 +81,11 @@ class InvertedIndex:
                 stemmed = self.stemmer.stem(token)
                 tokens.append(stemmed)
                 term_freq[stemmed] += 1.0   
+
+        for i in range(len(tokens) - 1):
+            bigram = tokens[i] + " " + tokens[i + 1]
+            term_freq[bigram] += 1.0
+        
         important_tags = soup.find_all(["title", "h1", "h2", "h3", "strong", "b"])
 
         for tag in important_tags:
